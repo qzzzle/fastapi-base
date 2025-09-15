@@ -35,6 +35,6 @@ The app only needs a reachable database; migrations are optional for this sample
 ```bash
 uvicorn app.main:app --reload
 ```
-Root health: http://127.0.0.1:8000/
+Root health: http://127.0.0.1:8000/health
 
 Docs (Swagger): http://127.0.0.1:8000/docs
