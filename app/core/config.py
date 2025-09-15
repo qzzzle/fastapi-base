@@ -1,10 +1,3 @@
-"""
-Portable settings
-- Keep the same field names you already use.
-- Remove ENV→DB name mapping so we can reuse this core anywhere.
-- Provide a safe CORS list (main.py already expects it).
-"""
-
 import os
 from typing import ClassVar
 
@@ -18,11 +11,6 @@ load_dotenv()
 class Configs(BaseSettings):
     # Which environment we are running in (dev|stage|prod)
     ENV: str = Field(default=os.getenv("ENV", "dev"))
-
-    # API prefixes used across the project
-    API: ClassVar[str] = "/api"
-    API_V1_STR: ClassVar[str] = "/api/v1"
-    API_V2_STR: ClassVar[str] = "/api/v2"
 
     PROJECT_NAME: ClassVar[str] = "fastapi-base"
 
