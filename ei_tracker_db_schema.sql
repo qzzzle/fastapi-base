@@ -136,22 +136,13 @@ CREATE TABLE case_tests (
 );
 
 -- =============================================
--- JUNCTION TABLES FOR MANY-TO-MANY RELATIONSHIPS
+-- NOTE: Cells and Bands data comes from Atoll APIs
 -- =============================================
-
--- Case Cells (many-to-many between cases and cells)
-CREATE TABLE case_cells (
-    case_id INTEGER NOT NULL REFERENCES ei_cases(id) ON DELETE CASCADE,
-    cell_id VARCHAR(100) NOT NULL,
-    PRIMARY KEY (case_id, cell_id)
-);
-
--- Case Bands (many-to-many between cases and bands)
-CREATE TABLE case_bands (
-    case_id INTEGER NOT NULL REFERENCES ei_cases(id) ON DELETE CASCADE,
-    band band_enum NOT NULL,
-    PRIMARY KEY (case_id, band)
-);
+-- The cells and bands data is fetched from Atoll APIs at runtime
+-- and is not stored in the EI Tracker database. This data is:
+-- - Validated against Atoll during case creation/update
+-- - Retrieved from Atoll APIs when needed for display
+-- - Not persisted locally to avoid data synchronization issues
 
 -- =============================================
 -- AUDIT AND CHANGE LOG TABLES
@@ -207,11 +198,7 @@ CREATE INDEX idx_case_tests_case_id ON case_tests(case_id);
 CREATE INDEX idx_case_tests_mvo_test_date ON case_tests(mvo_test_date);
 CREATE INDEX idx_case_tests_created_at ON case_tests(created_at);
 
--- Indexes for junction tables
-CREATE INDEX idx_case_cells_case_id ON case_cells(case_id);
-CREATE INDEX idx_case_cells_cell_id ON case_cells(cell_id);
-CREATE INDEX idx_case_bands_case_id ON case_bands(case_id);
-CREATE INDEX idx_case_bands_band ON case_bands(band);
+-- Note: No indexes needed for cells/bands as they come from Atoll APIs
 
 -- Indexes for change log
 CREATE INDEX idx_ei_case_changes_case_id ON ei_case_changes(case_id);
@@ -303,14 +290,9 @@ SELECT
             EXTRACT(EPOCH FROM (c.date_of_clear_datetime - c.detection_datetime)) / 86400
         ELSE
             EXTRACT(EPOCH FROM (NOW() - c.detection_datetime)) / 86400
-    END::INTEGER AS age,
-    ARRAY_AGG(DISTINCT cc.cell_id) AS cells,
-    ARRAY_AGG(DISTINCT cb.band::TEXT) AS bands
+    END::INTEGER AS age
 FROM ei_cases c
-LEFT JOIN case_cells cc ON c.id = cc.case_id
-LEFT JOIN case_bands cb ON c.id = cb.case_id
-WHERE c.is_deleted = FALSE
-GROUP BY c.id;
+WHERE c.is_deleted = FALSE;
 
 -- View for case statistics
 CREATE VIEW case_statistics AS
@@ -410,9 +392,7 @@ INSERT INTO ei_cases (
     'example.user@mtnirancell.ir'
 );
 
--- Insert sample cells and bands
-INSERT INTO case_cells (case_id, cell_id) VALUES (1, 'IR-TEH-12345-1'), (1, 'IR-TEH-12345-2');
-INSERT INTO case_bands (case_id, band) VALUES (1, '1800'), (1, '2100');
+-- Note: Cells and bands data comes from Atoll APIs, not stored locally
 
 -- Insert sample comment
 INSERT INTO case_comments (case_id, text, created_by) VALUES (
@@ -437,14 +417,13 @@ INSERT INTO case_tests (case_id, mvo_test_date, mvo_test_comment, created_by, mo
 COMMENT ON TABLE ei_cases IS 'Main table for EI interference cases. Atoll-controlled fields are immutable after creation.';
 COMMENT ON TABLE case_comments IS 'Comments on EI cases. Comments are not editable or deletable after creation.';
 COMMENT ON TABLE case_tests IS 'Test records for EI cases. Tests can be updated but not deleted.';
-COMMENT ON TABLE case_cells IS 'Junction table for case-to-cell relationships (many-to-many).';
-COMMENT ON TABLE case_bands IS 'Junction table for case-to-band relationships (many-to-many).';
+-- Note: case_cells and case_bands tables removed - data comes from Atoll APIs
 COMMENT ON TABLE ei_case_changes IS 'Audit log for all changes to EI cases, used for export functionality.';
 
 COMMENT ON COLUMN ei_cases.cra_tracking_no IS 'Auto-generated tracking number in format EI_YYYYMMDDHH24MISS';
 COMMENT ON COLUMN ei_cases.site IS 'Site ID from Atoll - immutable after creation';
-COMMENT ON COLUMN ei_cases.cells IS 'Array of cell IDs - stored in junction table case_cells';
-COMMENT ON COLUMN ei_cases.bands IS 'Array of bands - stored in junction table case_bands';
+COMMENT ON COLUMN ei_cases.cells IS 'Array of cell IDs - fetched from Atoll APIs at runtime';
+COMMENT ON COLUMN ei_cases.bands IS 'Array of bands - fetched from Atoll APIs at runtime';
 COMMENT ON COLUMN ei_cases.detection_datetime IS 'When interference was detected - must be <= now';
 COMMENT ON COLUMN ei_cases.mvo_raise_datetime IS 'Auto-set on case creation';
 COMMENT ON COLUMN ei_cases.date_of_clear_datetime IS 'When case was resolved - must be >= detection_datetime';
@@ -459,7 +438,6 @@ COMMENT ON COLUMN ei_cases.age IS 'Computed field - days since detection or reso
 -- GRANT SELECT, INSERT, UPDATE ON ei_cases TO ei_tracker_app;
 -- GRANT SELECT, INSERT ON case_comments TO ei_tracker_app;
 -- GRANT SELECT, INSERT, UPDATE ON case_tests TO ei_tracker_app;
--- GRANT SELECT, INSERT, UPDATE, DELETE ON case_cells TO ei_tracker_app;
--- GRANT SELECT, INSERT, UPDATE, DELETE ON case_bands TO ei_tracker_app;
+-- Note: No grants needed for case_cells/case_bands as they don't exist (data from Atoll APIs)
 -- GRANT SELECT ON ei_case_changes TO ei_tracker_app;
 -- GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA public TO ei_tracker_app;

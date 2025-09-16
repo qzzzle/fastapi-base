@@ -11,9 +11,9 @@ This document describes the comprehensive database design for the EI Tracker sys
 1. **ei_cases** - Main entity for EI interference cases
 2. **case_comments** - Comments on cases (create-only, no updates/deletes)
 3. **case_tests** - Test records for cases (updatable, no deletes)
-4. **case_cells** - Junction table for case-to-cell relationships
-5. **case_bands** - Junction table for case-to-band relationships
-6. **ei_case_changes** - Audit log for all case changes
+4. **ei_case_changes** - Audit log for all case changes
+
+**Note**: Cells and bands data is fetched from Atoll APIs at runtime and is not stored in the EI Tracker database.
 
 ### Key Design Principles
 
@@ -28,10 +28,12 @@ This document describes the comprehensive database design for the EI Tracker sys
 ```
 ei_cases (1) -----> (N) case_comments
 ei_cases (1) -----> (N) case_tests
-ei_cases (1) -----> (N) case_cells
-ei_cases (1) -----> (N) case_bands
 ei_cases (1) -----> (N) ei_case_changes
 ```
+
+**External Data Sources**:
+- **Atoll APIs** provide cells and bands data for each case at runtime
+- **Keycloak** provides user authentication and authorization data
 
 ## Detailed Table Specifications
 
@@ -71,10 +73,13 @@ ei_cases (1) -----> (N) ei_case_changes
 - Full audit trail (created and modified)
 - Test date and comment fields
 
-### 4. Junction Tables
+### 4. Atoll API Integration
 
-**case_cells**: Many-to-many relationship between cases and cell IDs
-**case_bands**: Many-to-many relationship between cases and frequency bands
+**Cells and Bands Data**: 
+- Fetched from Atoll APIs at runtime
+- Validated during case creation/update
+- Not stored locally to avoid synchronization issues
+- Retrieved when needed for display or validation
 
 ### 5. ei_case_changes
 
@@ -163,7 +168,10 @@ Calculates case age in days based on MVO status and resolution date
 ## Integration Points
 
 ### External Systems
-- **Atoll**: Validates site, cell, and band data
+- **Atoll APIs**: 
+  - Provides site, cell, and band data at runtime
+  - Validates site information during case creation
+  - Supplies cells and bands for each case (not stored locally)
 - **Keycloak**: Provides user authentication and authorization
 - **File Service**: Handles export file generation and downloads
 
@@ -171,18 +179,18 @@ Calculates case age in days based on MVO status and resolution date
 - All fields from OpenAPI specification are supported
 - Computed fields (age) are calculated in views
 - Timezone handling supports Asia/Tehran (UTC+03:30)
+- Cells and bands arrays are populated from Atoll APIs at runtime
 
 ## Migration and Deployment
 
 ### Initial Setup
 1. Create enums and types
 2. Create main tables with constraints
-3. Create junction tables
-4. Create audit tables
-5. Add indexes for performance
-6. Create triggers for automation
-7. Create views for common queries
-8. Add business logic functions
+3. Create audit tables
+4. Add indexes for performance
+5. Create triggers for automation
+6. Create views for common queries
+7. Add business logic functions
 
 ### Sample Data
 - Includes test data for development and testing
